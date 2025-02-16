@@ -39,14 +39,14 @@ export function Room() {
   const userColor = localStorage.getItem('userColor');
 
   useEffect(() => {
-    if (!userName || !userColor) return;
+    if (!userName || !userColor || !roomId) return;
 
     fetchRoom();
     fetchPapers();
     
-    // Set up real-time subscription for papers
+    // Set up real-time subscriptions
     const papersSubscription = supabase
-      .channel('papers_channel')
+      .channel(`papers_${roomId}`)
       .on(
         'postgres_changes',
         {
@@ -55,19 +55,77 @@ export function Room() {
           table: 'papers',
           filter: `room_id=eq.${roomId}`,
         },
-        () => {
+        (payload) => {
+          console.log('Papers change received:', payload);
           fetchPapers();
+          
+          // If the current selected paper was deleted, clear it
+          if (payload.eventType === 'DELETE' && selectedPaper?.id === payload.old.id) {
+            setSelectedPaper(null);
+          }
+          
+          // If the current selected paper was updated, refresh it
+          if (payload.eventType === 'UPDATE' && selectedPaper?.id === payload.new.id) {
+            setSelectedPaper(payload.new);
+          }
         }
       )
       .subscribe();
 
+    const roomSubscription = supabase
+      .channel(`room_${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'rooms',
+          filter: `id=eq.${roomId}`,
+        },
+        (payload) => {
+          console.log('Room change received:', payload);
+          if (payload.eventType === 'DELETE') {
+            setError('This room has been deleted');
+            return;
+          }
+          fetchRoom();
+        }
+      )
+      .subscribe();
+
+    // Set up polling for additional reliability
+    const pollInterval = setInterval(() => {
+      fetchRoom();
+      fetchPapers();
+      if (selectedPaper) {
+        refreshSelectedPaper();
+      }
+    }, 1000);
+
     return () => {
       papersSubscription.unsubscribe();
+      roomSubscription.unsubscribe();
+      clearInterval(pollInterval);
     };
-  }, [roomId]);
+  }, [roomId, selectedPaper?.id]);
 
-  if (!userName || !userColor) {
-    return <Navigate to="/" />;
+  async function refreshSelectedPaper() {
+    if (!selectedPaper) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('papers')
+        .select('*')
+        .eq('id', selectedPaper.id)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setSelectedPaper(data);
+      }
+    } catch (err) {
+      console.error('Error refreshing selected paper:', err);
+    }
   }
 
   async function fetchRoom() {
@@ -125,8 +183,6 @@ export function Room() {
         .single();
 
       if (error) throw error;
-
-      setPapers((prev) => [data, ...prev]);
       setSelectedPaper(data);
     } catch (error: any) {
       console.error('Error processing paper:', error);
@@ -141,7 +197,6 @@ export function Room() {
       const { error } = await supabase.from('papers').delete().eq('id', id);
       if (error) throw error;
 
-      setPapers((prev) => prev.filter((paper) => paper.id !== id));
       if (selectedPaper?.id === id) {
         setSelectedPaper(null);
       }
@@ -182,6 +237,10 @@ export function Room() {
     } finally {
       setAnalyzing(false);
     }
+  }
+
+  if (!userName || !userColor) {
+    return <Navigate to="/" />;
   }
 
   if (!room) {
@@ -373,7 +432,7 @@ export function Room() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-                <Users className="h-16 w-16 mb-4" />
+                <FileText className="h-16 w-16 mb-4" />
                 <p>Select a paper to start collaborating</p>
               </div>
             )}

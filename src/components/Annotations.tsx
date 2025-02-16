@@ -32,7 +32,7 @@ export function Annotations({ paperId, paperText, userName, userColor }: Annotat
       
       // Set up real-time subscription
       const annotationsSubscription = supabase
-        .channel('annotations_channel')
+        .channel(`annotations_${paperId}`)
         .on(
           'postgres_changes',
           {
@@ -41,23 +41,25 @@ export function Annotations({ paperId, paperText, userName, userColor }: Annotat
             table: 'annotations',
             filter: `paper_id=eq.${paperId}`,
           },
-          () => {
+          (payload) => {
+            console.log('Annotations change received:', payload);
             fetchAnnotations();
           }
         )
         .subscribe();
 
+      // Set up polling for additional reliability
+      const pollInterval = setInterval(fetchAnnotations, 1000);
+
       return () => {
         annotationsSubscription.unsubscribe();
+        clearInterval(pollInterval);
       };
     }
   }, [paperId]);
 
   async function fetchAnnotations() {
     try {
-      setLoading(true);
-      setError(null);
-      
       const { data, error } = await supabase
         .from('annotations')
         .select('*')
@@ -72,8 +74,6 @@ export function Annotations({ paperId, paperText, userName, userColor }: Annotat
     } catch (err: any) {
       console.error('Error fetching annotations:', err);
       setError(err.message || 'Failed to load annotations');
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -106,7 +106,6 @@ export function Annotations({ paperId, paperText, userName, userColor }: Annotat
         throw new Error(error.message);
       }
 
-      setAnnotations((prev) => [...prev, data]);
       setNewAnnotation('');
     } catch (err: any) {
       console.error('Error adding annotation:', err);
@@ -128,8 +127,6 @@ export function Annotations({ paperId, paperText, userName, userColor }: Annotat
       if (error) {
         throw new Error(error.message);
       }
-
-      setAnnotations((prev) => prev.filter((a) => a.id !== id));
     } catch (err: any) {
       console.error('Error deleting annotation:', err);
       setError(err.message || 'Failed to delete annotation');

@@ -11,50 +11,56 @@ const genAI = new GoogleGenerativeAI(apiKey);
 const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
 export async function summarizePaper(text: string): Promise<string> {
-  if (!text) {
-    throw new Error('No text provided for summarization');
-  }
-
+  const prompt = `Please provide a comprehensive summary of the following research paper. Focus on the main findings, methodology, and conclusions. Give pre formatted text as output. Here's the paper text:\n\n${text}`;
+  
   try {
-    const result = await model.generateContent(text);
+    const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
-  } catch (error: any) {
-    console.error('Error in summarizePaper:', error);
-    throw new Error(error.message || 'Failed to summarize paper');
+  } catch (error) {
+    console.error('Error summarizing paper:', error);
+    throw error;
   }
 }
 
 export async function detectBias(text: string): Promise<string> {
-  if (!text) {
-    throw new Error('No text provided for bias detection');
-  }
+  const prompt = `Analyze the following research paper for potential biases. Consider:
+  1. Selection bias in methodology
+  2. Confirmation bias in conclusions
+  3. Sampling bias in data collection
+  4. Cultural or geographical bias
+  5. Funding source bias
+  6. Publication bias
+  
+  Provide a detailed analysis of any biases found and their potential impact on the research findings.
+  Give pre formatted text as output.
+  
+  Paper text:\n\n${text}`;
 
   try {
-    const result = await model.generateContent(text);
+    const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
-  } catch (error: any) {
-    console.error('Error in detectBias:', error);
-    throw new Error(error.message || 'Failed to detect bias');
+  } catch (error) {
+    console.error('Error detecting bias:', error);
+    throw error;
   }
 }
 
 export async function answerQuestion(text: string, question: string): Promise<string> {
-  if (!text || !question) {
-    throw new Error('Missing text or question');
-  }
+  const prompt = `Using the context of the following research paper, please answer this question: "${question}"
+  
+  Paper text:\n\n${text}`;
 
   try {
-    const result = await model.generateContent(`${text}\n\nQuestion: ${question}`);
+    const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
-  } catch (error: any) {
-    console.error('Error in answerQuestion:', error);
-    throw new Error(error.message || 'Failed to answer question');
+  } catch (error) {
+    console.error('Error answering question:', error);
+    throw error;
   }
 }
-
 export async function getSuggestions(paperText: string, annotation: string): Promise<string> {
   if (!paperText || !annotation) {
     throw new Error('Missing paper text or annotation');
