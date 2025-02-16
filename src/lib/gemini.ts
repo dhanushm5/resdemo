@@ -23,30 +23,6 @@ export async function summarizePaper(text: string): Promise<string> {
   }
 }
 
-export async function detectBias(text: string): Promise<string> {
-  const prompt = `Analyze the following research paper for potential biases. Consider:
-  1. Selection bias in methodology
-  2. Confirmation bias in conclusions
-  3. Sampling bias in data collection
-  4. Cultural or geographical bias
-  5. Funding source bias
-  6. Publication bias
-  
-  Provide a detailed analysis of any biases found and their potential impact on the research findings.
-  Give pre formatted text as output.
-  
-  Paper text:\n\n${text}`;
-
-  try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  } catch (error) {
-    console.error('Error detecting bias:', error);
-    throw error;
-  }
-}
-
 export async function answerQuestion(text: string, question: string): Promise<string> {
   const prompt = `Using the context of the following research paper, please answer this question: "${question}"
   
@@ -61,6 +37,7 @@ export async function answerQuestion(text: string, question: string): Promise<st
     throw error;
   }
 }
+
 export async function getSuggestions(paperText: string, annotation: string): Promise<string> {
   if (!paperText || !annotation) {
     throw new Error('Missing paper text or annotation');

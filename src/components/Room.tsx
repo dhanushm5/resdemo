@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase';
 import { PaperUploader } from './PaperUploader';
 import { PaperList } from './PaperList';
 import { Annotations } from './Annotations';
-import { Users, FileText, AlertTriangle, HelpCircle, AlertCircle } from 'lucide-react';
-import { summarizePaper, detectBias, answerQuestion } from '../lib/gemini';
+import { Users, FileText, HelpCircle } from 'lucide-react';
+import { summarizePaper, answerQuestion } from '../lib/gemini';
 
 interface Paper {
   id: string;
@@ -29,8 +29,7 @@ export function Room() {
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'summary' | 'bias' | 'qa' | 'annotations'>('summary');
-  const [biasAnalysis, setBiasAnalysis] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'summary' | 'qa' | 'collaboration'>('summary');
   const [question, setQuestion] = useState<string>('');
   const [answer, setAnswer] = useState<string>('');
   const [analyzing, setAnalyzing] = useState(false);
@@ -206,22 +205,6 @@ export function Room() {
     }
   }
 
-  async function handleBiasDetection() {
-    if (!selectedPaper?.full_text) return;
-    
-    setAnalyzing(true);
-    setError(null);
-    try {
-      const analysis = await detectBias(selectedPaper.full_text);
-      setBiasAnalysis(analysis);
-    } catch (err: any) {
-      console.error('Error detecting bias:', err);
-      setError('Failed to analyze bias. Please try again.');
-    } finally {
-      setAnalyzing(false);
-    }
-  }
-
   async function handleQuestionSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedPaper?.full_text || !question) return;
@@ -311,19 +294,6 @@ export function Room() {
                       Summary
                     </button>
                     <button
-                      onClick={() => {
-                        setActiveTab('bias');
-                        if (!biasAnalysis) handleBiasDetection();
-                      }}
-                      className={`px-4 py-3 font-medium text-sm border-b-2 ${
-                        activeTab === 'bias'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Bias Analysis
-                    </button>
-                    <button
                       onClick={() => setActiveTab('qa')}
                       className={`px-4 py-3 font-medium text-sm border-b-2 ${
                         activeTab === 'qa'
@@ -334,14 +304,14 @@ export function Room() {
                       Q&A
                     </button>
                     <button
-                      onClick={() => setActiveTab('annotations')}
+                      onClick={() => setActiveTab('collaboration')}
                       className={`px-4 py-3 font-medium text-sm border-b-2 ${
-                        activeTab === 'annotations'
+                        activeTab === 'collaboration'
                           ? 'border-blue-500 text-blue-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      Annotations
+                      Collaboration
                     </button>
                   </nav>
                 </div>
@@ -354,28 +324,6 @@ export function Room() {
                       <p className="text-gray-600 whitespace-pre-wrap">
                         {selectedPaper.summary}
                       </p>
-                    </div>
-                  )}
-
-                  {activeTab === 'bias' && (
-                    <div className="prose max-w-none">
-                      {analyzing ? (
-                        <div className="flex items-center justify-center py-8">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
-                        </div>
-                      ) : biasAnalysis ? (
-                        <>
-                          <div className="flex items-center gap-2 mb-4">
-                            <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                            <h3 className="text-lg font-medium">Bias Analysis</h3>
-                          </div>
-                          <p className="text-gray-600 whitespace-pre-wrap">
-                            {biasAnalysis}
-                          </p>
-                        </>
-                      ) : (
-                        <p>Analyzing bias...</p>
-                      )}
                     </div>
                   )}
 
@@ -420,7 +368,7 @@ export function Room() {
                     </div>
                   )}
 
-                  {activeTab === 'annotations' && selectedPaper && (
+                  {activeTab === 'collaboration' && selectedPaper && (
                     <Annotations
                       paperId={selectedPaper.id}
                       paperText={selectedPaper.full_text}
